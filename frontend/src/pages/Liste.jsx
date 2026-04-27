@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Table,
   Thead,
@@ -8,23 +8,104 @@ import {
   Td,
   TableContainer,
   Heading,
-  Button,
   Stack,
   Badge,
   IconButton,
-  Box
+  Box,
+  useToast
 } from '@chakra-ui/react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { api } from '../api';
 
 const Liste = () => {
-  // Données de test
-  const visiteurs = [
-    { id: 1, nom: "Jean", jours: 3, tarifJ: 50000 },
-    { id: 2, nom: "Alice", jours: 5, tarifJ: 40000 }
-  ];
+  const [visiteurs, setVisiteurs] = useState([]);
+  const toast = useToast();
 
-  const handleEdit = (id) => console.log("Modifier", id);
-  const handleDelete = (id) => console.log("Supprimer", id);
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .getVisiteurs()
+      .then((data) => {
+        if (!cancelled) {
+          setVisiteurs(data);
+        }
+      })
+      .catch((error) => {
+        toast({
+          title: 'Chargement échoué',
+          description: error.message || 'Impossible de charger les visiteurs',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'bottom-right',
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [toast]);
+
+  const charger = async () => {
+    const data = await api.getVisiteurs();
+    setVisiteurs(data);
+  };
+
+  const handleEdit = async (numeroVisiteur) => {
+    const nouvelleValeur = Number(window.prompt('Nouveau tarif journalier ?'));
+    if (Number.isNaN(nouvelleValeur)) {
+      return;
+    }
+
+    try {
+      const result = await api.updateVisiteur(numeroVisiteur, {
+        tarifJournalier: nouvelleValeur,
+      });
+      toast({
+        title: result.success ? 'Modification réussie' : 'Modification échouée',
+        description: result.message,
+        status: result.success ? 'success' : 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+      await charger();
+    } catch (error) {
+      toast({
+        title: 'Modification échouée',
+        description: error.message || 'Erreur de mise à jour',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+    }
+  };
+
+  const handleDelete = async (numeroVisiteur) => {
+    try {
+      const result = await api.deleteVisiteur(numeroVisiteur);
+      toast({
+        title: result.success ? 'Suppression réussie' : 'Suppression échouée',
+        description: result.message,
+        status: result.success ? 'success' : 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+      await charger();
+    } catch (error) {
+      toast({
+        title: 'Suppression échouée',
+        description: error.message || 'Erreur de suppression',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+    }
+  };
 
   return (
     <Box>
@@ -45,13 +126,13 @@ const Liste = () => {
           </Thead>
           <Tbody>
             {visiteurs.map((v) => (
-              <Tr key={v.id} _hover={{ bg: "gray.50" }}>
+              <Tr key={v.numeroVisiteur} _hover={{ bg: "gray.50" }}>
                 <Td fontWeight="medium">{v.nom}</Td>
-                <Td isNumeric>{v.jours}</Td>
-                <Td isNumeric>{v.tarifJ.toLocaleString()} Ar</Td>
+                <Td isNumeric>{v.nombreJours}</Td>
+                <Td isNumeric>{v.tarifJournalier.toLocaleString()} Ar</Td>
                 <Td isNumeric>
                   <Badge colorScheme="green" fontSize="0.9em">
-                    {(v.jours * v.tarifJ).toLocaleString()} Ar
+                    {v.tarif.toLocaleString()} Ar
                   </Badge>
                 </Td>
                 <Td>
@@ -62,7 +143,7 @@ const Liste = () => {
                       colorScheme="yellow"
                       variant="outline"
                       aria-label="Modifier"
-                      onClick={() => handleEdit(v.id)}
+                      onClick={() => handleEdit(v.numeroVisiteur)}
                     />
                     <IconButton
                       size="sm"
@@ -70,7 +151,7 @@ const Liste = () => {
                       colorScheme="red"
                       variant="outline"
                       aria-label="Supprimer"
-                      onClick={() => handleDelete(v.id)}
+                      onClick={() => handleDelete(v.numeroVisiteur)}
                     />
                   </Stack>
                 </Td>

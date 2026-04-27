@@ -7,34 +7,56 @@ import {
   Input, 
   VStack, 
   Heading, 
-  Text, 
   useToast,
   InputGroup,
   InputLeftElement
 } from '@chakra-ui/react';
 import { FiUser, FiCalendar, FiDollarSign } from 'react-icons/fi';
+import { api } from '../api';
 
 const Ajout = () => {
+  const [numeroVisiteur, setNumeroVisiteur] = useState(0);
   const [nom, setNom] = useState('');
   const [jours, setJours] = useState(0);
   const [tarifJ, setTarifJ] = useState(0);
-  const toast = useToast(); // Pour des notifications plus jolies que du texte simple
+  const toast = useToast();
 
-  const enregistrer = (e) => {
+  const enregistrer = async (e) => {
     e.preventDefault();
-    
-    // Simulation de l'appel API
-    console.log({ nom, jours, tarifJ });
 
-    // Notification de succès
-    toast({
-      title: "Insertion réussie",
-      description: `Le visiteur ${nom} a été ajouté.`,
-      status: "success",
-      duration: 3000,
-      isClosable: true,
-      position: "bottom-right",
-    });
+    try {
+      const result = await api.createVisiteur({
+        numeroVisiteur,
+        nom,
+        nombreJours: jours,
+        tarifJournalier: tarifJ,
+      });
+
+      toast({
+        title: result.success ? 'Insertion réussie' : 'Insertion échouée',
+        description: result.message,
+        status: result.success ? 'success' : 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+
+      if (result.success) {
+        setNumeroVisiteur(0);
+        setNom('');
+        setJours(0);
+        setTarifJ(0);
+      }
+    } catch (error) {
+      toast({
+        title: 'Insertion échouée',
+        description: error.message || 'Erreur de communication avec le serveur',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      });
+    }
   };
 
   return (
@@ -45,7 +67,22 @@ const Ajout = () => {
 
       <form onSubmit={enregistrer}>
         <VStack spacing={5}>
-          {/* CHAMP NOM */}
+          <FormControl isRequired>
+            <FormLabel>N° visiteur</FormLabel>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <FiUser color="gray.300" />
+              </InputLeftElement>
+              <Input
+                type="number"
+                value={numeroVisiteur || ''}
+                placeholder="Ex: 1"
+                onChange={e => setNumeroVisiteur(Number(e.target.value))}
+                focusBorderColor="blue.400"
+              />
+            </InputGroup>
+          </FormControl>
+
           <FormControl isRequired>
             <FormLabel>Nom du visiteur</FormLabel>
             <InputGroup>
@@ -54,6 +91,7 @@ const Ajout = () => {
               </InputLeftElement>
               <Input 
                 type="text" 
+                value={nom}
                 placeholder="Ex: Jean Dupont" 
                 onChange={e => setNom(e.target.value)} 
                 focusBorderColor="blue.400"
@@ -70,6 +108,7 @@ const Ajout = () => {
               </InputLeftElement>
               <Input 
                 type="number" 
+                value={jours || ''}
                 placeholder="0" 
                 onChange={e => setJours(Number(e.target.value))} 
                 focusBorderColor="blue.400"
@@ -86,6 +125,7 @@ const Ajout = () => {
               </InputLeftElement>
               <Input 
                 type="number" 
+                value={tarifJ || ''}
                 placeholder="Ex: 50000" 
                 onChange={e => setTarifJ(Number(e.target.value))} 
                 focusBorderColor="blue.400"

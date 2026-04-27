@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Box, 
   SimpleGrid, 
@@ -12,6 +12,7 @@ import {
 } from '@chakra-ui/react';
 import { FiTrendingUp, FiArrowDown, FiArrowUp } from 'react-icons/fi';
 import { Bar } from 'react-chartjs-2';
+import { api } from '../api';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,16 +27,39 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const Bilan = () => {
-  // Simulation de calculs (plus tard, ces données viendront de ton state global ou API)
-  const stats = { total: 450000, min: 50000, max: 150000 };
+  const [stats, setStats] = useState({ total: 0, min: 0, max: 0, items: [] });
+  const [error, setError] = useState('');
 
-  // Configuration du graphique
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .getBilan()
+      .then((result) => {
+        if (!cancelled) {
+          setStats({
+            total: result.total ?? 0,
+            min: result.min ?? 0,
+            max: result.max ?? 0,
+            items: result.items ?? [],
+          });
+        }
+      })
+      .catch((e) => {
+        setError(e.message || 'Chargement du bilan échoué');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const data = {
-    labels: ['Jean', 'Alice', 'Meva', 'Rado'], // Noms des visiteurs
+    labels: stats.items.map((item) => item.nom),
     datasets: [
       {
         label: 'Tarif Total (Ar)',
-        data: [150000, 200000, 50000, 50000],
+        data: stats.items.map((item) => item.tarif),
         backgroundColor: 'rgba(49, 130, 206, 0.6)',
         borderColor: 'rgb(49, 130, 206)',
         borderWidth: 1,
@@ -57,8 +81,8 @@ const Bilan = () => {
       <Heading as="h2" size="lg" mb={8} color="blue.700">
         Bilan des Visites
       </Heading>
+      {error && <Text color="red.500">{error}</Text>}
 
-      {/* CARTES DE STATISTIQUES */}
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={10}>
         <StatCard 
           label="Recette Totale" 
@@ -80,7 +104,6 @@ const Bilan = () => {
         />
       </SimpleGrid>
 
-      {/* ZONE DU GRAPHIQUE */}
       <Box bg="white" p={6} borderRadius="xl" border="1px" borderColor="gray.100" shadow="sm" h="400px">
         <Bar data={data} options={options} />
       </Box>
